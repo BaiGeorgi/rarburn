@@ -1,0 +1,73 @@
+#!/bin/bash
+###########
+## The main idea of this script is to run it inside an directory (for exaple 0001) with some content for backup
+##  This script will:
+## 1. Copy create some scripts so you can easyly check and restore the archived content (inside 0001)
+## 2. Create file with MD5 sums for the original content (inside 0001)
+## 3. Archive the data (inside 0001) with RAR (nonfree) and add 10% recovery record
+## 4. Create file with MD5 sums (inside 0001) for the RAR archives, so you can check them with md5sum -c rar.md5
+## 5. Create a directory (inside 0001) with the same name (you know it 0001) as the main directory and move the data that will be burned on the CD/DVD/BD
+## 6. Unmount the optical drive if it is mounted by udev
+## 7. Burn ISO9660 image on the optical media with the same label as the main directory (0001 is dynamic, check "${PWD##*/}")
+## 8. Don`t eject the drive after the burning ends, mount it with udev, check the archived data, return to the main directory, report for errors and eject the CD.
+###########
+## You are free to modify the code and help me to improve it
+## Created by georgi*dot*patsev_at_gmail|dot|com
+## PS: I know that rar isn't free, but i dont want to deal with tar,p7zip and par2 simontaniously. Also i want to make a good use of my rar license.
+BURNER=/dev/sr0
+AUTOMOUNTPATH=/media/"$USER"/
+RESTOREPATH=/media/hit1/Bluray/undo/
+RARBURNPATH=/usr/local/bin
+RARPASSWORD=editthissuperstrongpassword
+RARSPLIT=500M
+sync
+echo "#!/bin/bash" > check ##Create check
+echo "#find ./ -type f -print0 | parallel --no-notice -n 1 -0 -X md5sum > sums.md5" >> check
+echo "md5sum -c --quiet *.md5" >> check
+chmod a+x check
+echo "#!/bin/bash" > gen ##Create gen
+echo "find ./ -type f ! -name '*.md5' ! -name 'gen' ! -name 'check' -exec md5sum {} + > "${PWD##*/}".md5" >> gen
+chmod a+x gen
+echo "#!/bin/bash" > restore ##Create restore
+echo "rar x "$AUTOMOUNTPATH"*/*.part01.rar "$RESTOREPATH"" >> restore
+chmod a+x restore #end
+cp "$RARBURNPATH"/rarburn ./
+echo "Creating "${PWD##*/}".md5" && sync
+find ./ -type f ! -name '*.md5' ! -name 'gen' ! -name 'check' -exec md5sum {} + > "${PWD##*/}".md5
+rar a -mt1 -r -rr12 -hp"$RARPASSWORD" -v"$RARSPLIT" -t -ma5 -m5 -htb -msmkv -ms7z -mswebm -msavi -msmp4 -msflv -mswmv "${PWD##*/}".rar *
+echo "Creating rar.md5"
+md5sum *.rar > rar.md5
+mkdir "${PWD##*/}"
+mv *.rar "${PWD##*/}"/
+mv rar.md5 check gen restore "${PWD##*/}"/
+## OLD ##udisksctl unmount -b "$BURNER" ##Unmount & Burn
+## OLD ##umount "$BURNER"
+sync
+## OLD ##
+mv *.md5 /media/red2/Bluray/db/
+beep -f 500 -l 300 -D 10
+sleep 10
+echo ""
+read -n 1 -s -r -p "Press any key to burn the data."
+growisofs -use-the-force-luke=notray -iso-level 3 -UDF -speed=2 -Z "$BURNER" -V "${PWD##*/}" -r -J "${PWD##*/}"/
+#old##growisofs -use-the-force-luke=notray -speed=2 -Z "$BURNER" -V "${PWD##*/}" -r -J "${PWD##*/}"/
+#growisofs -use-the-force-luke=notray -Z "$BURNER" -V "${PWD##*/}" -r -J "${PWD##*/}"/
+beep -f 500 -l 300 -D 10
+sleep 10
+echo ""
+read -n 1 -s -r -p "Press any key to eject the ODD."
+eject
+echo ""
+read -n 1 -s -r -p "Close the ODD and press any key."
+echo ""
+#cd /media/cdrom0/ && echo "" && echo "Checking rar.md5 for errors" && 
+## OLD ##udevadm trigger && udisksctl mount -b "$BURNER" && sleep 20 && ##Mount & Check
+## OLD ##
+cd "$AUTOMOUNTPATH""${PWD##*/}" && echo "Checking rar.md5 for errors" &&
+md5sum -c --quiet *.md5 && echo "Done!" && cd - ##&& udisksctl unmount -b "$BURNER" && eject
+beep -f 500 -l 300 -D 10
+sleep 10
+echo ""
+read -n 1 -s -r -p "Press any key to eject the ODD."
+echo ""
+udisksctl unmount -b "$BURNER" && eject

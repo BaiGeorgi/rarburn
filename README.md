@@ -6,7 +6,7 @@ The main idea of this script is to run it inside an directory (for exaple 0001) 
 
 This script will:
 
- 1. Copy create some scripts so you can easyly check and restore the archived content (inside 0001)
+ 1. Create copy of some scripts so you can easyly check and restore the archived content (inside 0001)
  2. Create file with MD5 sums for the original content (inside 0001)
  3. Archive the data (inside 0001) with RAR (nonfree) and add 10% recovery record
  4. Create file with MD5 sums (inside 0001) for the RAR archives, so you can check them with md5sum -c rar.md5
